@@ -11,6 +11,7 @@ app = FastAPI()
 origins = [
     "https://sus-forest.vercel.app",
     "http://localhost:3000",
+    "https://translate-server-rust.vercel.app"
 ]
 
 app.add_middleware(
