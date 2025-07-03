@@ -15,7 +15,6 @@ app.add_middleware(
         "http://localhost:3000",              # local frontend
         "https://sus-forest.vercel.app"       # your production frontend
     ],  # Adjust this to your needs
-    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
