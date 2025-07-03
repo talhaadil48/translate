@@ -1,46 +1,41 @@
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 from gtts import gTTS
-import uuid
-import os
+import io
 
 app = FastAPI()
 
+# CORS setup
+origins = [
+    "https://sus-forest.vercel.app",
+    "http://localhost:3000",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "https://sus-forest.vercel.app"
-    ],
+    allow_origins=origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-TMP_DIR = "/tmp"  # Vercel allows /tmp for temp file writes
+class TTSRequest(BaseModel):
+    text: str
+    lang: str = "en"
 
 @app.post("/translate")
 async def translate(request: Request):
-    body = await request.json()
-    text = body.get("text", "")
-    lang = body.get("lang", "en")
+    data = await request.json()
+    text = data.get("text")
+    lang = data.get("lang", "en")
 
-    if not text:
-        return JSONResponse(status_code=400, content={"error": "Text is required"})
+    mp3_fp = io.BytesIO()
+    tts = gTTS(text=text, lang=lang)
+    tts.write_to_fp(mp3_fp)
+    mp3_fp.seek(0)
 
-    try:
-        filename = f"{uuid.uuid4().hex}.mp3"
-        filepath = os.path.join(TMP_DIR, filename)
+    return StreamingResponse(mp3_fp, media_type="audio/mpeg")
 
-        tts = gTTS(text=text, lang=lang)
-        tts.save(filepath)
 
-        return FileResponse(
-            filepath,
-            media_type="audio/mpeg",
-            filename="output.mp3",
-            headers={"Content-Disposition": "inline; filename=output.mp3"}
-        )
-
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
