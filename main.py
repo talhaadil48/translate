@@ -1,31 +1,46 @@
 from fastapi import FastAPI, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from gtts import gTTS
-from io import BytesIO
+import uuid
+import os
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # for quick testing; use specific domains in prod
-    allow_credentials=False,
+    allow_origins=[
+        "http://localhost:3000",
+        "https://sus-forest.vercel.app"
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-@app.post("/")
+TMP_DIR = "/tmp"  # Vercel allows /tmp for temp file writes
+
+@app.post("/translate")
 async def translate(request: Request):
     body = await request.json()
     text = body.get("text", "")
     lang = body.get("lang", "en")
 
     if not text:
-        return {"error": "Text is required"}
+        return JSONResponse(status_code=400, content={"error": "Text is required"})
 
-    mp3_fp = BytesIO()
-    tts = gTTS(text=text, lang=lang)
-    tts.write_to_fp(mp3_fp)
-    mp3_fp.seek(0)
+    try:
+        filename = f"{uuid.uuid4().hex}.mp3"
+        filepath = os.path.join(TMP_DIR, filename)
 
-    return StreamingResponse(mp3_fp, media_type="audio/mpeg")
+        tts = gTTS(text=text, lang=lang)
+        tts.save(filepath)
+
+        return FileResponse(
+            filepath,
+            media_type="audio/mpeg",
+            filename="output.mp3",
+            headers={"Content-Disposition": "inline; filename=output.mp3"}
+        )
+
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
