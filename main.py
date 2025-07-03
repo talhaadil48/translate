@@ -1,34 +1,31 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from pydantic import BaseModel
 from gtts import gTTS
-import uuid
-import os
-import threading
+from io import BytesIO
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",              # local frontend
-        "https://sus-forest.vercel.app"       # your production frontend
-    ],  # Adjust this to your needs
+    allow_origins=["*"],  # for quick testing; use specific domains in prod
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-class TTSRequest(BaseModel):
-    text: str
-    lang: str = "en"
 
-def remove_file_later(file_path: str, delay: int = 15):
-    threading.Timer(delay, lambda: os.remove(file_path) if os.path.exists(file_path) else None).start()
+@app.post("/")
+async def translate(request: Request):
+    body = await request.json()
+    text = body.get("text", "")
+    lang = body.get("lang", "en")
 
-@app.post("/translate")
-def translate(request: TTSRequest):
-    filename = f"{uuid.uuid4().hex}.mp3"
-    tts = gTTS(text=request.text, lang=request.lang)
-    tts.save(filename)
-    remove_file_later(filename)
-    return FileResponse(filename, media_type="audio/mpeg", filename=filename)
+    if not text:
+        return {"error": "Text is required"}
+
+    mp3_fp = BytesIO()
+    tts = gTTS(text=text, lang=lang)
+    tts.write_to_fp(mp3_fp)
+    mp3_fp.seek(0)
+
+    return StreamingResponse(mp3_fp, media_type="audio/mpeg")
