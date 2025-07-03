@@ -9,8 +9,6 @@ import threading
 
 app = FastAPI()
 
-app = FastAPI()
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # <-- Allow all origins
