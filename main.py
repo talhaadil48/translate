@@ -6,12 +6,15 @@ from gtts import gTTS
 import uuid
 import os
 import threading
-# commit
+
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # <-- Allow all origins
+    allow_origins=[
+        "http://localhost:3000",              # local frontend
+        "https://sus-forest.vercel.app"       # your production frontend
+    ],  # Adjust this to your needs
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
